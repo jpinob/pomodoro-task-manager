@@ -16,6 +16,16 @@ let selectedDuration = 25;
 let audioContext = null;
 
 /**
+ * Get CSRF token from meta tag.
+ *
+ * @returns {string} CSRF token value
+ */
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+/**
  * Play a notification sound using Web Audio API.
  * Creates a pleasant chime sound when the pomodoro completes.
  */
@@ -113,7 +123,10 @@ async function startTimer() {
     try {
         const response = await fetch('/pomodoro/start', {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
         });
         const data = await response.json();
         currentPomodoroId = data.pomodoro_id;
@@ -197,7 +210,10 @@ async function completeTimer() {
     if (currentPomodoroId) {
         try {
             await fetch(`/pomodoro/${currentPomodoroId}/complete`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
             });
         } catch (error) {
             console.error('Error completing pomodoro:', error);

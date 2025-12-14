@@ -9,15 +9,44 @@ from datetime import datetime, date, timedelta
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_wtf.csrf import CSRFProtect
+from flask_talisman import Talisman
+from dotenv import load_dotenv
 
 from models import db, User, Task, Pomodoro
 from helpers import login_required
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Flask app configuration
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pomodoro.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Secure session cookie configuration
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FORCE_HTTPS', 'False').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
+
+# Initialize Talisman for security headers
+# Only force HTTPS in production
+force_https = os.environ.get('FORCE_HTTPS', 'False').lower() == 'true'
+Talisman(
+    app,
+    force_https=force_https,
+    content_security_policy={
+        'default-src': "'self'",
+        'script-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
+        'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
+        'font-src': ["'self'", 'cdn.jsdelivr.net'],
+        'img-src': ["'self'", 'data:'],
+    }
+)
 
 # Initialize database
 db.init_app(app)
