@@ -71,7 +71,13 @@ class TestAuthRoutes:
         }, follow_redirects=True)
 
         assert response.status_code == 200
-        assert b'Registration successful' in response.data
+        # Should redirect to login page after successful registration
+        assert b'Sign in' in response.data or b'Login' in response.data
+
+        # Verify user was created in database
+        with app.app_context():
+            user = User.query.filter_by(username='newuser').first()
+            assert user is not None
 
     def test_register_password_mismatch(self, client):
         """Test registration with mismatched passwords."""
@@ -122,7 +128,12 @@ class TestAuthRoutes:
         """Test logout functionality."""
         response = authenticated_client.get('/logout', follow_redirects=True)
         assert response.status_code == 200
-        assert b'logged out' in response.data
+        # Should redirect to login page after logout
+        assert b'Sign in' in response.data or b'Login' in response.data
+
+        # Verify user can no longer access protected routes
+        response = authenticated_client.get('/tasks', follow_redirects=True)
+        assert b'Sign in' in response.data
 
 
 class TestTaskRoutes:

@@ -12,13 +12,63 @@ let isRunning = false;
 let currentPomodoroId = null;
 let selectedDuration = 25;
 
+// Audio context for notification sound
+let audioContext = null;
+
+/**
+ * Play a notification sound using Web Audio API.
+ * Creates a pleasant chime sound when the pomodoro completes.
+ */
+function playNotificationSound() {
+    try {
+        // Create audio context if it doesn't exist
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // Resume context if suspended (browser autoplay policy)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+
+        // Play a pleasant three-tone chime
+        const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5 (C major chord)
+
+        frequencies.forEach((freq, index) => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = freq;
+            oscillator.type = 'sine';
+
+            // Stagger the notes slightly
+            const startTime = now + (index * 0.15);
+            const duration = 0.5;
+
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+        });
+
+    } catch (e) {
+        console.log('Could not play notification sound:', e);
+    }
+}
+
 // DOM Elements
 const timerDisplay = document.getElementById('timer');
 const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
 const taskSelect = document.getElementById('taskSelect');
-const timerSound = document.getElementById('timerSound');
 const durationRadios = document.querySelectorAll('input[name="duration"]');
 
 /**
@@ -132,12 +182,8 @@ async function completeTimer() {
     clearInterval(timerInterval);
     isRunning = false;
 
-    // Play sound
-    try {
-        timerSound.play();
-    } catch (e) {
-        console.log('Could not play sound:', e);
-    }
+    // Play notification sound
+    playNotificationSound();
 
     // Show browser notification if permitted
     if (Notification.permission === 'granted') {
